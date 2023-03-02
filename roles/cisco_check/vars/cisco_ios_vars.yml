@@ -1,0 +1,20 @@
+---
+  local_username:
+    - "cisco"
+    - "not_cisco"
+  ntp_servers:
+    - "ntp server 10.100.0.1"
+    - "ntp server 10.101.0.1"
+  dns_servers:
+    - "ip name-server 10.100.0.2"
+    - "ip name-server 10.101.0.2"
+  snmp_view:
+    - "snmp-server view view1 iso included"
+  snmp_group:
+    - "snmp-server group group1 v3 priv read view1 "
+  snmp_user:
+    - "user1"
+  snmp_user_conf:
+    - "snmp-server user telegraf group1 v3 auth sha authpass priv aes 128 privpass access 10"
+  acl_10:
+    - "access-list 100 permit 192.168.1.60"

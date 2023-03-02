@@ -1,0 +1,2 @@
+- name: check cisco IOS show run
+  include: cisco_ios_show.yml

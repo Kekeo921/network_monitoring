@@ -1,0 +1,11 @@
+    - name: Run grafana
+      containers.podman.podman_container:
+        name: grafana
+        image: 0d9dace86a5c
+        state: started
+        user: 1003:1003
+        recreate: yes
+        ports:
+          - "3000:3000"
+        volumes:
+          - /etc/monitoring/grafana/data/:/var/lib/grafana

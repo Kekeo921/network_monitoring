@@ -1,0 +1,20 @@
+  - name: get ntp servers
+    set_fact: get_ntp_servers="{{showcommand.stdout[0] | regex_findall('^ntp server [0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}', multiline=True) }}"
+
+  - name: check ntp servers
+    debug:
+      msg: "{{ item }} - OK"
+    when: 'item in get_ntp_servers'
+    with_items: "{{ ntp_servers }}"
+
+  - name: check if ntp server is missing
+    debug:
+      msg: "{{ item }} - MISSING"
+    when: 'item not in get_ntp_servers'
+    with_items: "{{ ntp_servers }}"
+
+  - name: check useless ntp servers
+    debug:
+      msg: "{{ item }} - USELESS!"
+    when: 'item not in ntp_servers'
+    with_items: "{{ get_ntp_servers }}"

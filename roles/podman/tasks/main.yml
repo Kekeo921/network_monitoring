@@ -1,0 +1,16 @@
+- name: Run grafana 
+  include: podman_grafana.yml
+  tags: 
+   - run_grafana
+
+- name: Run alertmanager
+  include: podman_alertmanager.yml
+  tags: 
+   - run_alertmanager
+
+- name: run Telegraf local
+  include: podman_telegraf_local.yml
+  tags: 
+   - run_telegraf_local
+
+

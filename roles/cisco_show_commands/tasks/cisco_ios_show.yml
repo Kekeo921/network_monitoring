@@ -1,0 +1,6 @@
+  - name: run show commands
+    ios_command:
+     commands:
+       - show running-config
+       - show snmp user | i User      
+    register: showcommand

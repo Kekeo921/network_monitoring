@@ -1,0 +1,41 @@
+- hosts: Routers1
+  gather_facts: false
+  connection: network_cli
+
+  tasks:
+
+
+  - name: run commands
+    ios_command:
+     commands:
+       - show ip interface brief
+       - show run | i ntp  
+    register: commands
+
+  - debug: var=commands.stdout_lines[0]
+  - debug: var=commands.stdout_lines[1]
+
+#  - name: command 1 
+#    ios_command:
+#     commands:
+#       - show ip interface brief
+#    register: command1
+#
+#  - name: command 2
+#    ios_command:
+#     commands:
+#       - show run | i ntp 
+#    register: command2
+#
+#  - debug: var=command1.stdout_lines
+#  - debug: var=command2.stdout_lines
+
+
+
+#  - name: Show ip interface brief
+#    ios_command:
+#     commands:
+#       - show ip interface brief #use "show" command
+#    register: ipbrief
+#
+#  - debug: var=ipbrief.stdout_lines

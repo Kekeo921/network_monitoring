@@ -1,0 +1,20 @@
+  - name: get dns servers
+    set_fact: get_dns_servers="{{showcommand.stdout[0] | regex_findall('^ip name-server [0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}', multiline=True) }}"
+
+  - name: check dns servers
+    debug:
+      msg: "{{ item }} - OK"
+    when: 'item in get_dns_servers'
+    with_items: "{{ dns_servers }}"
+
+  - name: check if dns server is missing
+    debug:
+      msg: "{{ item }} - MISSING"
+    when: 'item not in get_dns_servers'
+    with_items: "{{ dns_servers }}"
+
+  - name: check useless dns servers
+    debug:
+      msg: "{{ item }} - USELESS!"
+    when: 'item not in dns_servers'
+    with_items: "{{ get_dns_servers }}"

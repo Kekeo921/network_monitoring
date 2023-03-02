@@ -1,0 +1,20 @@
+  - name: get local users
+    set_fact: get_local_users="{{showcommand.stdout[0] | regex_findall('username (\S+)', multiline=True) }}"
+
+  - name: check local users
+    debug:
+      msg: "local user: {{ item }} - OK"
+    when: 'item in get_local_users'
+    with_items: "{{ local_username }}"
+  
+  - name: check if local user is missing
+    debug:
+      msg: "local user: {{ item }} - MISSING"
+    when: 'item not in get_local_users'
+    with_items: "{{ local_username }}"
+  
+  - name: check useless local users
+    debug:
+      msg: "local user: {{ item }} - USELESS!"
+    when: 'item not in local_username'
+    with_items: "{{ get_local_users }}"

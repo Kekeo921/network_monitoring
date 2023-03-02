@@ -1,0 +1,96 @@
+- hosts: lab4
+  gather_facts: false
+  become: yes
+#  become_user: monitoring
+#  connection: local
+#  connection: network_cli
+#  vars:
+#    ansible_python_interpreter: /bin/python3
+  tasks:
+
+#       - name: Run grafana
+#      containers.podman.podman_container:
+#        name: grafana
+#        image: 0d9dace86a5c
+#        state: started
+#        user: 1003:1003
+#        recreate: yes
+#        ports:
+#          - "3000:3000"
+#        volumes:
+#          - /etc/monitoring/grafana/data/:/var/lib/grafana
+#
+#
+#    - name: Run alertmanager
+#      containers.podman.podman_container:
+#        name: alertmanager
+#        image: docker.io/prom/alertmanager 
+#        user: 1003:1003
+#        state: started
+##        privileged: yes
+#        recreate: yes
+#        ports:
+#          - "9093:9093"
+#        volumes:
+#          - /etc/monitoring/alertmanager/data/:/alertmanager/:z 
+#          - /etc/monitoring/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:z 
+##          - /etc/telegraf/alertmanager/ssl/:/etc/alertmanager/ssl:z 
+#          - /etc/monitoring/alertmanager/web_config.yml:/etc/alertmanager/web_config.yml:z 
+#          - /etc/monitoring/alertmanager/ssl/am_key.key:/etc/alertmanager/ssl/am_key.key:z 
+#          - /etc/monitoring/alertmanager/ssl/am_cert.crt:/etc/alertmanager/ssl/am_cert.crt:z 
+#        command:
+#          - "--config.file=/etc/alertmanager/alertmanager.yml"
+#          - "--storage.path=/alertmanager/"
+#          - "--web.config.file=/etc/alertmanager/web_config.yml"
+##          - "--web.external-url=https://{{inventory_hostname}}.local"
+#
+#
+#
+    - name: Run local telegraf 
+      containers.podman.podman_container:
+        name: telegraf_local
+        image: ce8d7a472ebd
+#        user: 1003:1003
+        state: started
+        recreate: yes
+        ports:
+          - "9273:9273"
+        volumes:
+          - /etc/monitoring/telegraf/telegraf_local.conf:/etc/telegraf/telegraf.conf:ro
+          - /etc/monitoring/alertmanager/ssl/am_key.key:/etc/ssl/am_key.key:z 
+          - /etc/monitoring/alertmanager/ssl/am_cert.crt:/etc/ssl/am_cert.crt:z 
+
+#    - name: Run snmp telegraf 
+#      containers.podman.podman_container:
+#        name: telegraf_snmp
+#        image: ce8d7a472ebd
+#        user: 1003:1003
+#        state: started
+#        recreate: yes
+#        ports:
+#          - "9123:9123"
+#        volumes:
+#          - /etc/monitoring/telegraf/telegraf_snmp.conf:/etc/telegraf/telegraf.conf:z
+#          - /etc/monitoring/telegraf/telegraf.d/:/etc/telegraf/telegraf.d/:z
+#        command: --config /etc/telegraf/telegraf.conf --config-directory /etc/telegraf/telegraf.d/
+##          - "telegraf --config-directory /etc/telegraf/telegraf.d"
+##          - "--config-directory /etc/telegraf/telegraf.d"
+##          - "--config /etc/telegraf/telegraf.conf --config-directory /etc/telegraf/telegraf.d/
+#
+    - name: Run node exporter container
+      docker_container:
+        name: node-exporter
+        image: prom/node-exporter:latest
+        state: started
+        recreate: yes
+        ports:
+          - "9100:9100"
+        volumes:
+          - /proc:/host/proc:ro
+          - /sys:/host/sys:ro
+          - /:/rootfs:ro
+          - /etc/monitoring/node_exporter/ssl/am_key.key:/etc/ssl/am_key.key:z 
+          - /etc/monitoring/node_exporter/ssl/am_cert.crt:/etc/ssl/am_cert.crt:z 
+          - /etc/monitoring/node_exporter/web_config.yml:/etc/node_exporter/web_config.yml:z 
+        command:
+          - "--web.config=/etc/node_exporter/web_config.yml"

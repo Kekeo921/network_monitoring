@@ -1,0 +1,11 @@
+- hosts: Routers
+  gather_facts: false
+  connection: local
+
+
+  tasks:
+
+    - name: Generate configuration files 
+      template:
+       src: ./templates/ios_template_v1 
+       dest: etc/monitoring/telegraf/telegraf.d/{{inventory_hostname}}.yaml

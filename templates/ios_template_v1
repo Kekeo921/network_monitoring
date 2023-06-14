@@ -1,0 +1,60 @@
+[[inputs.snmp]]
+  agents = ["udp://{{inventory_hostname}}:161"]
+  version = 2
+  community = "telegraf"
+  interval = "60s"
+  timeout = "10s"
+  retries = 1
+
+  [inputs.snmp.tags]
+    company = "{{ hostvars[inventory_hostname].company }}"
+    branch = "{{ hostvars[inventory_hostname].branch }}"
+    site = "{{ hostvars[inventory_hostname].site }}"
+
+  [[inputs.snmp.field]]
+      name = "uptime"
+      oid = "DISMAN-EVENT-MIB::sysUpTimeInstance"
+#      name = "SNMP-DF"
+
+# Table Interface metrics
+
+  [[inputs.snmp.field]]
+      oid = "RFC1213-MIB::sysName.0"
+      name = "source"
+      is_tag = true
+  
+  [[inputs.snmp.table]]
+    name = "Interfaces"
+    inherit_tags = [ "source" ]
+  [[inputs.snmp.table.field]]
+     name = "ifName"
+     oid = "IF-MIB::ifName"
+     is_tag = true
+  [[inputs.snmp.table.field]]
+     name = "ifAlias"
+     oid = "IF-MIB::ifAlias"
+     is_tag = true
+  [[inputs.snmp.table.field]]
+     name = "ifOperStatusCause"
+     oid = "1.3.6.1.4.1.9.9.276.1.1.2.1.10"
+     is_tag = true
+  [[inputs.snmp.table.field]]
+     oid = "IF-MIB::ifHighSpeed"
+  [[inputs.snmp.table.field]]
+     oid = "IF-MIB::ifAdminStatus"
+  [[inputs.snmp.table.field]]
+     oid = "IF-MIB::ifOperStatus"
+  [[inputs.snmp.table.field]]
+     oid = "IF-MIB::ifHCInOctets"
+  [[inputs.snmp.table.field]]
+     oid = "IF-MIB::ifHCOutOctets"
+  [[inputs.snmp.table.field]]
+     oid = "IF-MIB::ifInDiscards"
+  [[inputs.snmp.table.field]]
+     oid = "IF-MIB::ifOutDiscards"
+  [[inputs.snmp.table.field]]
+     oid = "IF-MIB::ifInErrors"
+  [[inputs.snmp.table.field]]
+     oid = "IF-MIB::ifOutErrors"
+  [[inputs.snmp.table.field]]
+     oid = "IF-MIB::ifInUnknownProtos"

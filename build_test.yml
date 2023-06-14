@@ -1,0 +1,21 @@
+- hosts: Routers
+  gather_facts: false
+  connection: local
+
+
+  tasks:
+
+    - name: print 
+      debug:
+        msg: "{{ hostvars[ansible_hostname].ansible_network_os }}"
+        msg: "{{ hostvars[inventory_hostname].company }}"
+        msg: "{{ hostvars[inventory_hostname].branch }}"
+      when: inventory_hostname in groups['Routers']
+#        msg: "{{ hostvars['R1'].ansible_network_os }}"
+
+
+    - name: Generate configuration files 
+      template:
+       src: ./templates/ios_template_v1 
+       dest: etc/monitoring/telegraf/telegraf.d/{{inventory_hostname}}.yaml
+#      with_items: "{{ routers }}"

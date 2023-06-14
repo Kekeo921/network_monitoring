@@ -6,6 +6,8 @@
 #  connection: network_cli
 #  vars:
 #    ansible_python_interpreter: /bin/python3
+  vars:
+    instances: 3
   tasks:
 
 #       - name: Run grafana
@@ -78,7 +80,7 @@
 ##          - "--config /etc/telegraf/telegraf.conf --config-directory /etc/telegraf/telegraf.d/
 #
     - name: Run node exporter container
-      docker_container:
+      containers.podman.podman_container:
         name: node-exporter
         image: prom/node-exporter:latest
         state: started
@@ -94,3 +96,48 @@
           - /etc/monitoring/node_exporter/web_config.yml:/etc/node_exporter/web_config.yml:z 
         command:
           - "--web.config=/etc/node_exporter/web_config.yml"
+        generate_systemd:
+          path: /etc/systemd/system/
+          restart_policy: always
+
+
+    - name: start and enable service
+      ansible.builtin.systemd:
+        state: started
+        name: container-node-exporter.service
+        enabled: true
+
+
+    - name: Run alertmanager
+      containers.podman.podman_container:
+        name: alertmanager-{{ '%s' | format(item) }}-prd
+        image: docker.io/prom/alertmanager 
+        user: 1001:1001
+        state: started
+#        privileged: yes
+        recreate: yes
+        ports:
+          - "1008{{ '%s' | format(item) }}:9093"
+        volumes:
+          - /etc/telegraf/alertmanager/data/:/alertmanager/:z 
+          - /etc/telegraf/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:z 
+#          - /etc/telegraf/alertmanager/ssl/:/etc/alertmanager/ssl:z 
+          - /etc/telegraf/alertmanager/web_config.yml:/etc/alertmanager/web_config.yml:z 
+          - /etc/telegraf/alertmanager/ssl/am_key.key:/etc/alertmanager/ssl/am_key.key:z 
+          - /etc/telegraf/alertmanager/ssl/am_cert.crt:/etc/alertmanager/ssl/am_cert.crt:z 
+        command:
+          - "--config.file=/etc/alertmanager/alertmanager.yml"
+          - "--storage.path=/alertmanager/"
+          - "--web.config.file=/etc/alertmanager/web_config.yml"
+#          - "--web.external-url=https://{{inventory_hostname}}.local"
+        generate_systemd:
+          path: /etc/systemd/system/
+          restart_policy: always
+      loop: "{{ range(1 ,instances + 1 )|list }}"
+
+    - name: start and enable service
+      ansible.builtin.systemd:
+        state: started
+        name: container-alertmanager-{{ '%s' | format(item) }}-prd.service
+        enabled: true
+      loop: "{{ range(1 ,instances + 1 )|list }}"

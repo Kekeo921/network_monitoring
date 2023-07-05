@@ -1,0 +1,7 @@
+- hosts: lab4
+  gather_facts: false
+  become: yes
+  vars:
+    instances: 3
+  roles:
+    - podmanv2

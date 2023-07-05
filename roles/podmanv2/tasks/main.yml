@@ -1,0 +1,5 @@
+- name: deploy podman
+  include: podman.yml
+  vars:
+    index: "{{ item }}"
+  loop: "{{ range(1, instances + 1) | list }}"

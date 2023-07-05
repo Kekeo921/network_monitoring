@@ -7,7 +7,7 @@
 #  vars:
 #    ansible_python_interpreter: /bin/python3
   vars:
-    instances: 3
+    instances: 4
   tasks:
 
 #       - name: Run grafana
@@ -48,19 +48,19 @@
 #
 #
 #
-    - name: Run local telegraf 
-      containers.podman.podman_container:
-        name: telegraf_local
-        image: ce8d7a472ebd
-#        user: 1003:1003
-        state: started
-        recreate: yes
-        ports:
-          - "9273:9273"
-        volumes:
-          - /etc/monitoring/telegraf/telegraf_local.conf:/etc/telegraf/telegraf.conf:ro
-          - /etc/monitoring/alertmanager/ssl/am_key.key:/etc/ssl/am_key.key:z 
-          - /etc/monitoring/alertmanager/ssl/am_cert.crt:/etc/ssl/am_cert.crt:z 
+#    - name: Run local telegraf 
+#      containers.podman.podman_container:
+#        name: telegraf_local
+#        image: ce8d7a472ebd
+##        user: 1003:1003
+#        state: started
+#        recreate: yes
+#        ports:
+#          - "9273:9273"
+#        volumes:
+#          - /etc/monitoring/telegraf/telegraf_local.conf:/etc/telegraf/telegraf.conf:ro
+#          - /etc/monitoring/alertmanager/ssl/am_key.key:/etc/ssl/am_key.key:z 
+#          - /etc/monitoring/alertmanager/ssl/am_cert.crt:/etc/ssl/am_cert.crt:z 
 
 #    - name: Run snmp telegraf 
 #      containers.podman.podman_container:
@@ -79,65 +79,119 @@
 ##          - "--config-directory /etc/telegraf/telegraf.d"
 ##          - "--config /etc/telegraf/telegraf.conf --config-directory /etc/telegraf/telegraf.d/
 #
-    - name: Run node exporter container
-      containers.podman.podman_container:
-        name: node-exporter
-        image: prom/node-exporter:latest
-        state: started
-        recreate: yes
-        ports:
-          - "9100:9100"
-        volumes:
-          - /proc:/host/proc:ro
-          - /sys:/host/sys:ro
-          - /:/rootfs:ro
-          - /etc/monitoring/node_exporter/ssl/am_key.key:/etc/ssl/am_key.key:z 
-          - /etc/monitoring/node_exporter/ssl/am_cert.crt:/etc/ssl/am_cert.crt:z 
-          - /etc/monitoring/node_exporter/web_config.yml:/etc/node_exporter/web_config.yml:z 
-        command:
-          - "--web.config=/etc/node_exporter/web_config.yml"
-        generate_systemd:
-          path: /etc/systemd/system/
-          restart_policy: always
+#    - name: Run node exporter container
+#      containers.podman.podman_container:
+#        name: node-exporter
+#        image: prom/node-exporter:latest
+#        state: started
+#        recreate: yes
+#        ports:
+#          - "9100:9100"
+#        volumes:
+#          - /proc:/host/proc:ro
+#          - /sys:/host/sys:ro
+#          - /:/rootfs:ro
+#          - /etc/monitoring/node_exporter/ssl/am_key.key:/etc/ssl/am_key.key:z 
+#          - /etc/monitoring/node_exporter/ssl/am_cert.crt:/etc/ssl/am_cert.crt:z 
+#          - /etc/monitoring/node_exporter/web_config.yml:/etc/node_exporter/web_config.yml:z 
+#        command:
+#          - "--web.config=/etc/node_exporter/web_config.yml"
+#        generate_systemd:
+#          path: /etc/systemd/system/
+#          restart_policy: always
+#
+#
+#    - name: start and enable service
+#      ansible.builtin.systemd:
+#        state: started
+#        name: container-node-exporter.service
+#        enabled: true
 
-
-    - name: start and enable service
+    - name: Get Service Status
       ansible.builtin.systemd:
-        state: started
-        name: container-node-exporter.service
-        enabled: true
+        name: "container-alertmanager-{{ '%s' | format(item) }}-prd.service"
+      register: AM
+      with_sequence: start=1 end="{{ instances }}"
+
+#    - name: Display Service ActiveState
+#      debug:
+#        msg: "ActiveState is active"
+#      when: item.status.ActiveState == "active"
+#      loop: "{{ AM.results }}"
+
+    - name: Stop Services if Running
+      service:
+        name: "{{ item.name }}"
+        state: stopped
+      when: item.status.ActiveState == "active"
+      loop: "{{ AM.results }}"
 
 
-    - name: Run alertmanager
-      containers.podman.podman_container:
-        name: alertmanager-{{ '%s' | format(item) }}-prd
-        image: docker.io/prom/alertmanager 
-        user: 1001:1001
-        state: started
-#        privileged: yes
-        recreate: yes
-        ports:
-          - "1008{{ '%s' | format(item) }}:9093"
-        volumes:
-          - /etc/telegraf/alertmanager/data/:/alertmanager/:z 
-          - /etc/telegraf/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:z 
-#          - /etc/telegraf/alertmanager/ssl/:/etc/alertmanager/ssl:z 
-          - /etc/telegraf/alertmanager/web_config.yml:/etc/alertmanager/web_config.yml:z 
-          - /etc/telegraf/alertmanager/ssl/am_key.key:/etc/alertmanager/ssl/am_key.key:z 
-          - /etc/telegraf/alertmanager/ssl/am_cert.crt:/etc/alertmanager/ssl/am_cert.crt:z 
-        command:
-          - "--config.file=/etc/alertmanager/alertmanager.yml"
-          - "--storage.path=/alertmanager/"
-          - "--web.config.file=/etc/alertmanager/web_config.yml"
-#          - "--web.external-url=https://{{inventory_hostname}}.local"
-        generate_systemd:
-          path: /etc/systemd/system/
-          restart_policy: always
-      loop: "{{ range(1 ,instances + 1 )|list }}"
 
-    - name: start and enable service
-      ansible.builtin.systemd:
-        state: started
-        name: container-alertmanager-{{ '%s' | format(item) }}-prd.service
-        enabled: true
-      loop: "{{ range(1 ,instances + 1 )|list }}"
+
+
+#    - name: Stop Services if Active
+#      service:
+#        name: "container-alertmanager-{{ '%s' | format(item) }}-prd.service"
+#        state: stopped
+#      loop: "{{ range(1 ,instances + 1 )|list }}"
+#      when: item.status.ActiveState == "active"
+#      loop: "{{ AM.results }}"
+#    - debug: 
+#        var: AM.results.item.name
+#      when: item.state == 'started'
+#      loop: "{{ AM.results }}"
+
+#    - name: Stop Service if Active
+#      ansible.builtin.systemd:
+#        name: "{{ item.item }}"
+#        state: stopped
+#      when: item.state == 'started'
+#      loop: "{{ AM.results }}"
+
+#    - name: stop service
+#      ansible.builtin.systemd:
+#        state: stopped
+#        name: container-alertmanager-{{ '%s' | format(item) }}-prd.service
+#      loop: "{{ range(1 ,instances + 1 )|list }}"
+#
+#    - name: Run alertmanager
+#      containers.podman.podman_container:
+#        name: alertmanager-{{ '%s' | format(item) }}-prd
+#        image: docker.io/prom/alertmanager 
+#        user: 1001:1001
+#        state: started
+##        privileged: yes
+#        recreate: yes
+#        ports:
+#          - "1008{{ '%s' | format(item) }}:9093"
+#        volumes:
+#          - /etc/telegraf/alertmanager/data/:/alertmanager/:z 
+#          - /etc/telegraf/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:z 
+##          - /etc/telegraf/alertmanager/ssl/:/etc/alertmanager/ssl:z 
+#          - /etc/telegraf/alertmanager/web_config.yml:/etc/alertmanager/web_config.yml:z 
+#          - /etc/telegraf/alertmanager/ssl/am_key.key:/etc/alertmanager/ssl/am_key.key:z 
+#          - /etc/telegraf/alertmanager/ssl/am_cert.crt:/etc/alertmanager/ssl/am_cert.crt:z 
+#        command:
+#          - "--config.file=/etc/alertmanager/alertmanager.yml"
+#          - "--storage.path=/alertmanager/"
+#          - "--web.config.file=/etc/alertmanager/web_config.yml"
+##          - "--web.external-url=https://{{inventory_hostname}}.local"
+#        generate_systemd:
+#          path: /etc/systemd/system/
+#          restart_policy: always
+#      loop: "{{ range(1 ,instances + 1 )|list }}"
+#
+#    - name: daemon reload
+#      ansible.builtin.systemd:
+#        daemon_reload: true
+#
+#    - name: start and enable service
+#      ansible.builtin.systemd:
+#        state: started
+#        name: container-alertmanager-{{ '%s' | format(item) }}-prd.service
+#        enabled: true
+#      loop: "{{ range(1 ,instances + 1 )|list }}"
+
+
+

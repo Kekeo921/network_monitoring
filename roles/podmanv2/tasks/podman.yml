@@ -1,0 +1,48 @@
+    - name: Get Service Status - {{ index }}
+      ansible.builtin.systemd:
+        name: "container-alertmanager-{{ index }}-prd.service"
+      register: service_status
+
+    - name: Stop Services if Running - {{ index }}
+      service:
+        name: "container-alertmanager-{{ index }}-prd.service"
+        state: stopped
+      when: service_status.status.ActiveState == "active"
+
+    - name: Run alertmanager - {{ index }}
+      containers.podman.podman_container:
+        name: alertmanager-{{ index }}-prd
+        image: docker.io/prom/alertmanager 
+        user: 1001:1001
+        state: started
+#        privileged: yes
+        recreate: yes
+        ports:
+          - "1008{{ index }}:9093"
+        volumes:
+          - /etc/telegraf/alertmanager/data/:/alertmanager/:z 
+          - /etc/telegraf/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:z 
+#          - /etc/telegraf/alertmanager/ssl/:/etc/alertmanager/ssl:z 
+          - /etc/telegraf/alertmanager/web_config.yml:/etc/alertmanager/web_config.yml:z 
+          - /etc/telegraf/alertmanager/ssl/am_key.key:/etc/alertmanager/ssl/am_key.key:z 
+          - /etc/telegraf/alertmanager/ssl/am_cert.crt:/etc/alertmanager/ssl/am_cert.crt:z 
+        command:
+          - "--config.file=/etc/alertmanager/alertmanager.yml"
+          - "--storage.path=/alertmanager/"
+          - "--web.config.file=/etc/alertmanager/web_config.yml"
+#          - "--web.external-url=https://{{inventory_hostname}}.local"
+        generate_systemd:
+          path: /etc/systemd/system/
+          restart_policy: always
+
+
+    - name: daemon reload
+      ansible.builtin.systemd:
+        daemon_reload: true
+
+    - name: start and enable service - {{ index }}
+      ansible.builtin.systemd:
+        state: started
+        name: container-alertmanager-{{ index }}-prd.service
+        enabled: true
+

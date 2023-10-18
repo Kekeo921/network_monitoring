@@ -1,0 +1,306 @@
+- hosts: Network1
+  gather_facts: false
+  connection: network_cli
+  ignore_errors: yes
+  vars_files:
+    - ./vars/ios_vars.yaml
+  vars:
+    prometheus_metrics:
+      - user_check
+      - ntp_check
+      - dns_check
+      - snmp_view_check
+      - snmp_group_check
+      - snmp_user_check
+
+  tasks:
+  - name: check pushgateway
+    shell:
+      cmd: curl -s http://192.168.1.62:9091/metrics
+    register: pushgateway
+
+#  - debug: var=pushgateway.stdout_lines
+
+  - name: get pushgateway jobs
+    set_fact: pushgateway_jobs="{{ pushgateway.stdout | regex_findall('^push_time_seconds{instance=\"\",job=\"(\S+)\"}', multiline=True) }}"
+
+  - name: clean pushgateway
+    shell:
+      cmd: curl -X DELETE http://192.168.1.62:9091/metrics/job/{{ item }}
+    loop: "{{ pushgateway_jobs }}"
+
+  - name: clean prometheus
+    shell:
+      cmd: curl -X POST -g 'http://192.168.1.60:9090/api/v1/admin/tsdb/delete_series?match[]={{ item }}'
+    loop: "{{ prometheus_metrics }}"
+
+#  - debug: var=pushgateway_jobs
+#  - debug: var=prometheus_metrics
+
+##################################################################################################################
+
+
+  - name: Show running config
+    ios_command:
+     commands:
+       - show snmp user | i User
+       - show running-config
+    register: showrun
+
+#  - debug: var=showrun.stdout_lines
+
+  - name: get local users
+    set_fact: get_local_users="{{showrun.stdout[1] | regex_findall('username (\S+)', multiline=True) }}"
+
+  - name: get ntp servers
+    set_fact: get_ntp_servers="{{showrun.stdout[1] | regex_findall('^ntp server [0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}', multiline=True) }}"
+
+  - name: get dns servers
+    set_fact: get_dns_servers="{{showrun.stdout[1] | regex_findall('^ip name-server [0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}', multiline=True) }}"
+
+  - name: get snmp view
+    set_fact: get_snmp_view="{{showrun.stdout[1] | regex_findall('snmp-server view.*', multiline=True) }}"
+  
+  - name: get snmp groups
+    set_fact: get_snmp_group="{{showrun.stdout[1] | regex_findall('snmp-server group.*', multiline=True) }}"
+
+  - name: get snmp user
+    set_fact: get_snmp_user="{{showrun.stdout[0] | regex_findall('^User name. (\S+)', multiline=True) }}"
+
+  - name: get acl 10 - snmp v3
+    set_fact: get_acl_10="{{showrun.stdout[1] | regex_findall('^access-list 10 .*', multiline=True) }}"
+
+#################################################################################################################
+  - name: Compare user lists
+    set_fact:
+      common_elements_user: "{{ get_local_users | intersect(local_username) }}"
+      unique_elements_local_username: "{{ local_username | difference(get_local_users) }}"
+      unique_elements_get_local_users: "{{ get_local_users | difference(local_username) }}"
+
+#  - debug:
+#      msg:
+#        - "Common elements: {{ common_elements }}"
+#        - "Unique elemets unique_elements_get_local_users: {{ unique_elements_get_local_users }}"
+#        - "Missing elements: {{ unique_elements_local_username }}"
+
+  - name: push common users to gateway
+    shell:
+      cmd: echo -e "user_check{host=\"{{ inventory_hostname }}\", user=\"{{ item }}\"} 1" | curl --data-binary @- http://192.168.1.62:9091/metrics/job/ios_check_{{ inventory_hostname }}_user_ok_{{ loop_index }}
+    loop: "{{ common_elements_user }}"
+    loop_control:
+      index_var: loop_index
+
+  - name: push wrong users to gateway
+    shell:
+      cmd: echo -e "user_check{host=\"{{ inventory_hostname }}\", user=\"{{ item }}\"} 0" | curl --data-binary @- http://192.168.1.62:9091/metrics/job/ios_check_{{ inventory_hostname }}_user_nok_{{ loop_index }}
+    loop: "{{ unique_elements_get_local_users }}"
+    loop_control:
+      index_var: loop_index
+
+  - name: push missing users to gateway
+    shell:
+      cmd: echo -e "user_check{host=\"{{ inventory_hostname }}\", user=\"{{ item }}\"} 2" | curl --data-binary @- http://192.168.1.62:9091/metrics/job/ios_check_{{ inventory_hostname }}_user_miss_{{ loop_index }}
+    loop: "{{ unique_elements_local_username }}"
+    loop_control:
+      index_var: loop_index
+
+##################################################################################################################
+
+  - name: Compare ntp lists
+    set_fact:
+      common_elements_ntp: "{{ get_ntp_servers | intersect(ntp_servers) }}"
+      unique_elements_ntp_servers: "{{ ntp_servers | difference(get_ntp_servers) }}"
+      unique_elements_get_ntp_servers: "{{ get_ntp_servers | difference(ntp_servers) }}"
+
+#  - debug:
+#      msg: 
+#        -"{{unique_elements_ntp}}"
+
+  - name: push common ntp to gateway
+    shell:
+      cmd: echo -e "ntp_check{host=\"{{ inventory_hostname }}\", ntp=\"{{ item }}\"} 1" | curl --data-binary @- http://192.168.1.62:9091/metrics/job/ios_check_{{ inventory_hostname }}_ntp_ok_{{ loop_index }}
+    loop: "{{ common_elements_ntp }}"
+    loop_control:
+      index_var: loop_index
+
+  - name: push wrong ntp to gateway
+    shell:
+      cmd: echo -e "ntp_check{host=\"{{ inventory_hostname }}\", ntp=\"{{ item }}\"} 0" | curl --data-binary @- http://192.168.1.62:9091/metrics/job/ios_check_{{ inventory_hostname }}_ntp_nok_{{ loop_index }}
+    loop: "{{ unique_elements_get_ntp_servers }}"
+    loop_control:
+      index_var: loop_index
+
+  - name: push missing ntp to gateway
+    shell:
+      cmd: echo -e "ntp_check{host=\"{{ inventory_hostname }}\", ntp=\"{{ item }}\"} 2" | curl --data-binary @- http://192.168.1.62:9091/metrics/job/ios_check_{{ inventory_hostname }}_ntp_miss_{{ loop_index }}
+    loop: "{{ unique_elements_ntp_servers }}"
+    loop_control:
+      index_var: loop_index
+
+
+#################################################################################################################
+
+
+  - name: Compare dns lists
+    set_fact:
+      common_elements_dns: "{{ get_dns_servers | intersect(dns_servers) }}"
+      unique_elements_dns_servers: "{{ dns_servers | difference(get_dns_servers) }}"
+      unique_elements_get_dns_servers: "{{ get_dns_servers | difference(dns_servers) }}"
+
+  - name: push common  to gateway
+    shell:
+      cmd: echo -e "dns_check{host=\"{{ inventory_hostname }}\", dns=\"{{ item }}\"} 1" | curl --data-binary @- http://192.168.1.62:9091/metrics/job/ios_check_{{ inventory_hostname }}_dns_ok_{{ loop_index }}
+    loop: "{{ common_elements_dns }}"
+    loop_control:
+      index_var: loop_index
+
+  - name: push wrong dns to gateway
+    shell:
+      cmd: echo -e "dns_check{host=\"{{ inventory_hostname }}\", dns=\"{{ item }}\"} 0" | curl --data-binary @- http://192.168.1.62:9091/metrics/job/ios_check_{{ inventory_hostname }}_dns_nok_{{ loop_index }}
+    loop: "{{ unique_elements_get_dns_servers }}"
+    loop_control:
+      index_var: loop_index
+
+  - name: push missing dns to gateway
+    shell:
+      cmd: echo -e "dns_check{host=\"{{ inventory_hostname }}\", dns=\"{{ item }}\"} 2" | curl --data-binary @- http://192.168.1.62:9091/metrics/job/ios_check_{{ inventory_hostname }}_dns_miss_{{ loop_index }}
+    loop: "{{ unique_elements_dns_servers }}"
+    loop_control:
+      index_var: loop_index
+
+
+#################################################################################################################
+
+  - name: Compare snmp_view lists
+    set_fact:
+      common_elements_snmp_view: "{{ get_snmp_view | intersect(snmp_view) }}"
+      unique_elements_snmp_view: "{{ snmp_view | difference(get_snmp_view) }}"
+      unique_elements_get_snmp_view: "{{ get_snmp_view | difference(snmp_view) }}"
+
+  - name: push common  to gateway
+    shell:
+      cmd: echo -e "snmp_view_check{host=\"{{ inventory_hostname }}\", snmp_view=\"{{ item }}\"} 1" | curl --data-binary @- http://192.168.1.62:9091/metrics/job/ios_check_{{ inventory_hostname }}_snmp_view_ok_{{ loop_index }}
+    loop: "{{ common_elements_snmp_view }}"
+    loop_control:
+      index_var: loop_index
+
+  - name: push wrong snmp_view to gateway
+    shell:
+      cmd: echo -e "snmp_view_check{host=\"{{ inventory_hostname }}\", snmp_view=\"{{ item }}\"} 0" | curl --data-binary @- http://192.168.1.62:9091/metrics/job/ios_check_{{ inventory_hostname }}_snmp_view_nok_{{ loop_index }}
+    loop: "{{ unique_elements_get_snmp_view }}"
+    loop_control:
+      index_var: loop_index
+
+  - name: push missing snmp_view to gateway
+    shell:
+      cmd: echo -e "snmp_view_check{host=\"{{ inventory_hostname }}\", snmp_view=\"{{ item }}\"} 2" | curl --data-binary @- http://192.168.1.62:9091/metrics/job/ios_check_{{ inventory_hostname }}_snmp_view_miss_{{ loop_index }}
+    loop: "{{ unique_elements_snmp_view }}"
+    loop_control:
+      index_var: loop_index
+
+#################################################################################################################
+
+  - name: Compare snmp_group lists
+    set_fact:
+      common_elements_snmp_group: "{{ get_snmp_group | intersect(snmp_group) }}"
+      unique_elements_snmp_group: "{{ snmp_group | difference(get_snmp_group) }}"
+      unique_elements_get_snmp_group: "{{ get_snmp_group | difference(snmp_group) }}"
+
+  - name: push common  to gateway
+    shell:
+      cmd: echo -e "snmp_group_check{host=\"{{ inventory_hostname }}\", snmp_group=\"{{ item }}\"} 1" | curl --data-binary @- http://192.168.1.62:9091/metrics/job/ios_check_{{ inventory_hostname }}_snmp_group_ok_{{ loop_index }}
+    loop: "{{ common_elements_snmp_group }}"
+    loop_control:
+      index_var: loop_index
+
+  - name: push wrong snmp_group to gateway
+    shell:
+      cmd: echo -e "snmp_group_check{host=\"{{ inventory_hostname }}\", snmp_group=\"{{ item }}\"} 0" | curl --data-binary @- http://192.168.1.62:9091/metrics/job/ios_check_{{ inventory_hostname }}_snmp_group_nok_{{ loop_index }}
+    loop: "{{ unique_elements_get_snmp_group }}"
+    loop_control:
+      index_var: loop_index
+
+  - name: push missing snmp_group to gateway
+    shell:
+      cmd: echo -e "snmp_group_check{host=\"{{ inventory_hostname }}\", snmp_group=\"{{ item }}\"} 2" | curl --data-binary @- http://192.168.1.62:9091/metrics/job/ios_check_{{ inventory_hostname }}_snmp_group_miss_{{ loop_index }}
+    loop: "{{ unique_elements_snmp_group }}"
+    loop_control:
+      index_var: loop_index
+
+##################################################################################################################
+
+  - name: Compare snmp_user lists
+    set_fact:
+      common_elements_snmp_user: "{{ get_snmp_user | intersect(snmp_user) }}"
+      unique_elements_snmp_user: "{{ snmp_user | difference(get_snmp_user) }}"
+      unique_elements_get_snmp_user: "{{ get_snmp_user | difference(snmp_user) }}"
+
+  - name: push common  to gateway
+    shell:
+      cmd: echo -e "snmp_user_check{host=\"{{ inventory_hostname }}\", snmp_user=\"{{ item }}\"} 1" | curl --data-binary @- http://192.168.1.62:9091/metrics/job/ios_check_{{ inventory_hostname }}_snmp_user_ok_{{ loop_index }}
+    loop: "{{ common_elements_snmp_user }}"
+    loop_control:
+      index_var: loop_index
+
+  - name: push wrong snmp_user to gateway
+    shell:
+      cmd: echo -e "snmp_user_check{host=\"{{ inventory_hostname }}\", snmp_user=\"{{ item }}\"} 0" | curl --data-binary @- http://192.168.1.62:9091/metrics/job/ios_check_{{ inventory_hostname }}_snmp_user_nok_{{ loop_index }}
+    loop: "{{ unique_elements_get_snmp_user }}"
+    loop_control:
+      index_var: loop_index
+
+  - name: push missing snmp_user to gateway
+    shell:
+      cmd: echo -e "snmp_user_check{host=\"{{ inventory_hostname }}\", snmp_user=\"{{ item }}\"} 2" | curl --data-binary @- http://192.168.1.62:9091/metrics/job/ios_check_{{ inventory_hostname }}_snmp_user_miss_{{ loop_index }}
+    loop: "{{ unique_elements_snmp_user }}"
+    loop_control:
+      index_var: loop_index
+
+
+##################################################################################################################
+
+
+
+##################################################################################################################
+
+
+
+##################################################################################################################
+
+
+
+##################################################################################################################
+
+
+
+#curl -X DELETE http://192.168.1.62:9091/metrics/job/~
+
+#  - name: Count our fruit
+#    ansible.builtin.debug:
+#      msg: "{{ item }} with index {{ loop_index }}"
+#    loop: "{{unique_elements_ntp}}"  
+#    loop_control:
+#      index_var: loop_index
+
+
+
+
+#  - name: Create JSON file from results
+#    copy:
+#      content: |
+#        {
+#          "hostname": {{ inventory_hostname | to_json }},
+#          "common_elements": {{ common_elements | to_json }},
+#          "unique_elements_local_username": {{ unique_elements_local_username | to_json }}
+#        }
+#      dest: /etc/ansible/network_monitoring/result.json
+#  - name: Compare values from ios_vars file with gathered facts
+#    set_fact: compare_results="{{(ansible_facts.get_local_users | difference(ios_vars.local_users)) + (ios_vars.local_users | difference(ansible_facts.get_local_users))}} {{(ansible_facts.get_ntp_servers | difference(ios_vars.ntp_servers)) + (ios_vars.ntp_servers | difference(ansible_facts.get_ntp_servers))}}"
+#
+#  - name: Send comparison results to Prometheus
+#    prometheus_push:
+#      metric: "ios_vars_comparison"
+#      value: "{{compare_results}}"
+#
+#
+#cat "results.json" | jq -r 'to_entries|map("\(.key)\{host=\"R1\"\} \(.value|tostring)")|.[]' | curl --data-binary @- http://192.168.1.62:9091/metrics/job/ios_check/

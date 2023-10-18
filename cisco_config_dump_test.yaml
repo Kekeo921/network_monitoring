@@ -1,0 +1,19 @@
+- hosts: Network1
+  gather_facts: false
+  connection: network_cli
+  vars_files:
+    - ./vars/ios_vars.yaml
+
+  tasks:
+  - name: Show running config
+    ios_command:
+     commands:
+       - show running-config
+    register: showrun
+
+#  - debug: var=showrun.stdout_lines
+
+  - name: get ntp servers
+    set_fact: get_ntp_servers="{{showrun.stdout[0] | regex_findall('^ntp server [0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}', multiline=True) }}"
+
+  - debug: var=get_ntp_servers

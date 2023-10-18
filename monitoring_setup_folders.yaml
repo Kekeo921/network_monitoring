@@ -1,0 +1,28 @@
+- hosts: lab3
+  gather_facts: false
+#  connection: local
+#  connection: network_cli
+#  vars:
+#    ansible_python_interpreter: /bin/python3
+  tasks:
+
+
+    - name: Create monitoring folders
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0770"
+        owner: monitoring
+        group: monitoring
+      with_items:
+        - /etc/monitoring
+        - /etc/monitoring/docker-compose
+        - /etc/monitoring/telegraf
+        - /etc/monitoring/telegraf/telegraf.d
+        - /etc/monitoring/alertmanager
+        - /etc/monitoring/alertmanager/data
+        - /etc/monitoring/alertmanager/ssl
+        - /etc/monitoring/node_exporter
+        - /etc/monitoring/node_exporter/ssl
+        - /etc/monitoring/ssl
+        

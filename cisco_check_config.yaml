@@ -1,0 +1,166 @@
+- hosts: Network1
+  gather_facts: false
+  connection: network_cli
+  vars_files:
+    - ./vars/ios_vars.yaml
+
+  tasks:
+  - name: Show running config
+    ios_command:
+     commands:
+       - show snmp user | i User
+       - show running-config
+    register: showrun
+
+  - debug: var=showrun.stdout_lines
+
+  - name: get local users
+    set_fact: get_local_users="{{showrun.stdout[1] | regex_findall('username (\S+)', multiline=True) }}"
+
+  - name: get ntp servers
+    set_fact: get_ntp_servers="{{showrun.stdout[1] | regex_findall('^ntp server [0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}', multiline=True) }}"
+
+  - name: get dns servers
+    set_fact: get_dns_servers="{{showrun.stdout[1] | regex_findall('^ip name-server [0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}', multiline=True) }}"
+
+  - name: get snmp view
+    set_fact: get_snmp_view="{{showrun.stdout[1] | regex_findall('snmp-server view.*', multiline=True) }}"
+  
+  - name: get snmp groups
+    set_fact: get_snmp_groups="{{showrun.stdout[1] | regex_findall('snmp-server group.*', multiline=True) }}"
+
+  - name: get snmp user
+    set_fact: get_snmp_users="{{showrun.stdout[0] | regex_findall('^User name. (\S+)', multiline=True) }}"
+
+  - name: get acl 10 - snmp v3
+    set_fact: get_acl_10="{{showrun.stdout[1] | regex_findall('^access-list 10 .*', multiline=True) }}"
+
+
+  - name: check local users
+    debug:
+      msg: "local user: {{ item }} - OK"
+    when: 'item in get_local_users'
+    with_items: "{{ local_username }}"
+  
+  - name: check if local user is missing
+    debug:
+      msg: "local user: {{ item }} - MISSING"
+    when: 'item not in get_local_users'
+    with_items: "{{ local_username }}"
+  
+  - name: check useless local users
+    debug:
+      msg: "local user: {{ item }} - USELESS!"
+    when: 'item not in local_username'
+    with_items: "{{ get_local_users }}"
+##########################################################   NTP  ############################################################################
+  - name: check ntp servers
+    debug:
+      msg: "{{ item }} - OK"
+    when: 'item in get_ntp_servers'
+    with_items: "{{ ntp_servers }}"
+
+  - name: check if ntp server is missing
+    debug:
+      msg: "{{ item }} - MISSING"
+    when: 'item not in get_ntp_servers'
+    with_items: "{{ ntp_servers }}"
+
+  - name: check useless ntp servers
+    debug:
+      msg: "{{ item }} - USELESS!"
+    when: 'item not in ntp_servers'
+    with_items: "{{ get_ntp_servers }}"
+##########################################################   DNS  ############################################################################
+  - name: check dns servers
+    debug:
+      msg: "{{ item }} - OK"
+    when: 'item in get_dns_servers'
+    with_items: "{{ dns_servers }}"
+
+  - name: check if dns server is missing
+    debug:
+      msg: "{{ item }} - MISSING"
+    when: 'item not in get_dns_servers'
+    with_items: "{{ dns_servers }}"
+
+  - name: check useless dns servers
+    debug:
+      msg: "{{ item }} - USELESS!"
+    when: 'item not in dns_servers'
+    with_items: "{{ get_dns_servers }}"
+
+##########################################################   SNMP  ############################################################################
+  - name: check snmp view
+    debug:
+      msg: "{{ item }} - OK"
+    when: 'item in get_snmp_view'
+    with_items: "{{ snmp_view }}"
+
+  - name: check if snmp view is missing
+    debug:
+      msg: "{{ item }} - MISSING"
+    when: 'item not in get_snmp_view'
+    with_items: "{{ snmp_view }}"
+
+  - name: check useless snmp view
+    debug:
+      msg: "{{ item }} - USELESS!"
+    when: 'item not in snmp_view'
+    with_items: "{{ get_snmp_view }}"
+
+  - name: check snmp group
+    debug:
+      msg: "{{ item }} - OK"
+    when: 'item in get_snmp_groups'
+    with_items: "{{ snmp_group }}"
+
+  - name: check if snmp group is missing
+    debug:
+      msg: "{{ item }} - MISSING"
+    when: 'item not in get_snmp_groups'
+    with_items: "{{ snmp_group }}"
+
+  - name: check useless snmp group
+    debug:
+      msg: "{{ item }} - USELESS!"
+    when: 'item not in snmp_group'
+    with_items: "{{ get_snmp_groups }}"
+
+  - name: check snmp users
+    debug:
+      msg: "snmp user: {{ item }} - OK"
+    when: 'item in get_snmp_users'
+    with_items: "{{ snmp_user }}"
+  
+  - name: check if snmp user is missing
+    debug:
+      msg: "snmp user: {{ item }} - MISSING"
+    when: 'item not in get_snmp_users'
+    with_items: "{{ snmp_user }}"
+  
+  - name: check useless snmp users
+    debug:
+      msg: "snmp user: {{ item }} - USELESS!"
+    when: 'item not in snmp_user'
+    with_items: "{{ get_snmp_users }}"
+
+  - name: check acl 10
+    debug:
+      msg: "{{ item }} - OK"
+    when: 'item in get_acl_10'
+    with_items: "{{ acl_10 }}"
+
+  - name: check if acl 10 is missing
+    debug:
+      msg: "{{ item }} - MISSING"
+    when: 'item not in get_acl_10'
+    with_items: "{{ acl_10 }}"
+
+  - name: check useless acl
+    debug:
+      msg: "{{ item }} - USELESS!"
+    when: 'item not in acl_10'
+    with_items: "{{ get_acl_10 }}"
+
+

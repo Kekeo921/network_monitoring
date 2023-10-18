@@ -1,4 +1,4 @@
-- hosts: Routers1
+- hosts: Network1
   gather_facts: false
   connection: network_cli
 

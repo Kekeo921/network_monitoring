@@ -1,0 +1,120 @@
+- hosts: Network1
+  gather_facts: false
+  connection: network_cli
+  vars_files:
+    - ./vars/ios_vars.yaml
+
+  tasks:
+  - name: Show running config
+    ios_command:
+     commands:
+       - show snmp user
+       - show running-config
+    register: showrun
+
+#  - debug: var=showrun.stdout_lines
+
+  - name: get local users
+    set_fact: get_local_users="{{showrun.stdout[1] | regex_findall('username (\S+)', multiline=True) }}"
+
+  - name: get ntp servers
+    set_fact: get_ntp_servers="{{showrun.stdout[1] | regex_findall('^ntp server [0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}', multiline=True) }}"
+
+  - name: get dns servers
+    set_fact: get_dns_servers="{{showrun.stdout[1] | regex_findall('^ip name-server [0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}', multiline=True) }}"
+
+  - name: get snmp view
+    set_fact: get_snmp_view="{{showrun.stdout[1] | regex_findall('snmp-server view.*', multiline=True) }}"
+  
+  - name: get snmp groups
+    set_fact: get_snmp_groups="{{showrun.stdout[1] | regex_findall('snmp-server group.*', multiline=True) }}"
+
+  - name: get snmp user
+    set_fact: get_snmp_users="{{showrun.stdout[0] | regex_findall('^User name. (\S+)', multiline=True) }}"
+
+  - name: get acl 10 - snmp v3
+    set_fact: get_acl_10="{{showrun.stdout[1] | regex_findall('^access-list 10 .*', multiline=True) }}"
+
+
+##########################################################   NTP  ############################################################################
+  - name: add ntp server
+    ios_config:
+      lines:
+        - "{{ item }}"
+    when: 'item not in get_ntp_servers'
+    with_items: "{{ ntp_servers }}"
+
+  - name: delete useless ntp server
+    ios_config:
+      lines:
+        - "no {{ item }}"
+    when: 'item not in ntp_servers'
+    with_items: "{{ get_ntp_servers }}"
+
+##########################################################   DNS  ############################################################################
+  - name: add dns server
+    ios_config:
+      lines:
+        - "{{ item }}"
+    when: 'item not in get_dns_servers'
+    with_items: "{{ dns_servers }}"
+
+  - name: delete useless dns server
+    ios_config:
+      lines:
+        - "no {{ item }}"
+    when: 'item not in dns_servers'
+    with_items: "{{ get_dns_servers }}"
+
+##########################################################   SNMP ############################################################################
+  - name: add snmp view
+    ios_config:
+      lines:
+        - "{{ item }}"
+    when: 'item not in get_snmp_view'
+    with_items: "{{ snmp_view }}"
+
+  - name: delete useless dns server
+    ios_config:
+      lines:
+        - "no {{ item }}"
+    when: 'item not in snmp_view'
+    with_items: "{{ get_snmp_view }}"
+
+  - name: add snmp groups
+    ios_config:
+      lines:
+        - "{{ item }}"
+    when: 'item not in get_snmp_groups'
+    with_items: "{{ snmp_group }}"
+
+  - name: delete useless dns server
+    ios_config:
+      lines:
+        - "no {{ item }}"
+    when: 'item not in snmp_group'
+    with_items: "{{ get_snmp_groups }}"
+
+  - name: add snmp user
+    ios_config:
+      lines:
+        - "snmp-server user {{ item }} group1 v3 auth sha authpass priv aes 128 privpass access 10"
+    when: 'item not in get_snmp_users'
+    with_items: "{{ snmp_user }}"
+
+  - name: delete useless snmp user
+    ios_config:
+      lines:
+        - "snmp-server user {{ item }} group1 v3 auth sha authpass priv aes 128 privpass access 10"
+        - "no snmp-server user {{ item }} group1 v3 auth sha authpass priv aes 128 privpass access 10"
+    when: 'item not in snmp_user'
+    with_items: "{{ get_snmp_users }}"
+
+##########################################################   ACL  ############################################################################
+  - name: add acl 10
+    ios_config:
+      lines:
+        - "{{ item }}"
+      before: "no access-list 10"
+    when: 'item not in get_acl_10'
+    with_items: "{{ acl_10 }}"

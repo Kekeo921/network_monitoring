@@ -260,6 +260,34 @@
 ##################################################################################################################
 
 
+  - name: Compare ACLs 
+    set_fact:
+      common_elements_acl_10: "{{ get_acl_10 | intersect(acl_10) }}"
+      unique_elements_acl_10: "{{ acl_10 | difference(get_acl_10) }}"
+      unique_elements_get_acl_10: "{{ get_acl_10 | difference(acl_10) }}"
+
+  - name: push common  to gateway
+    shell:
+      cmd: echo -e "acl_10_check{host=\"{{ inventory_hostname }}\", acl_10=\"{{ item }}\"} 1" | curl --data-binary @- http://192.168.1.62:9091/metrics/job/ios_check_{{ inventory_hostname }}_acl_10_ok_{{ loop_index }}
+    loop: "{{ common_elements_acl_10 }}"
+    loop_control:
+      index_var: loop_index
+
+  - name: push wrong acl_10 to gateway
+    shell:
+      cmd: echo -e "acl_10_check{host=\"{{ inventory_hostname }}\", acl_10=\"{{ item }}\"} 0" | curl --data-binary @- http://192.168.1.62:9091/metrics/job/ios_check_{{ inventory_hostname }}_acl_10_nok_{{ loop_index }}
+    loop: "{{ unique_elements_get_acl_10 }}"
+    loop_control:
+      index_var: loop_index
+
+  - name: push missing acl_10 to gateway
+    shell:
+      cmd: echo -e "acl_10_check{host=\"{{ inventory_hostname }}\", acl_10=\"{{ item }}\"} 2" | curl --data-binary @- http://192.168.1.62:9091/metrics/job/ios_check_{{ inventory_hostname }}_acl_10_miss_{{ loop_index }}
+    loop: "{{ unique_elements_acl_10 }}"
+    loop_control:
+      index_var: loop_index
+
+
 
 ##################################################################################################################
 

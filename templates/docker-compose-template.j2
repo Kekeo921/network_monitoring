@@ -1,0 +1,30 @@
+version: '3.2'
+
+services:
+
+
+  prom-pushgateway:
+    image: prom/pushgateway
+    container_name: pushgateway
+    restart: always
+    ports:
+      - 9091:9091
+
+  alertmanager
+    image: docker.io/prom/alertmanager 
+    user: 1005:1005
+    restart: always
+    ports:
+      - "9093:9093"
+    volumes:
+      - /etc/monitoring/alertmanager/data/:/alertmanager/:z 
+      - /etc/monitoring/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:z 
+#         - /etc/telegraf/alertmanager/ssl/:/etc/alertmanager/ssl:z 
+      - /etc/monitoring/alertmanager/web_config.yml:/etc/alertmanager/web_config.yml:z 
+      - /etc/monitoring/ssl/am_key.key:/etc/alertmanager/ssl/am_key.key:z 
+      - /etc/monitoring/ssl/am_cert.crt:/etc/alertmanager/ssl/am_cert.crt:z 
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+      - "--storage.path=/alertmanager/"
+      - "--web.config.file=/etc/alertmanager/web_config.yml"
+#         - "--web.external-url=https://{{inventory_hostname}}.local"

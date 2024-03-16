@@ -1,0 +1,152 @@
+- hosts: Network1
+  gather_facts: false
+  connection: network_cli
+  any_errors_fatal: true
+#  strategy: free
+#  serial: 1
+  tasks:
+    - name: gather router facts
+      ios_facts:
+        gather_subset:
+        - 'min'
+        - 'interfaces'
+        - '!hardware'
+        - 'config'
+        - 'all'
+        gather_network_resources:
+#        - "interfaces"
+#        - "!all"
+#    - name: Check that the facts.csv exists
+#      stat:
+#        path: /etc/ansible/ansible_v2/facts.csv
+#      register: stat_result
+#
+#    - name: Create the file, if it doesnt exist
+#      file:
+#        path: /etc/ansible/ansible_v2/facts.csv
+#        state: touch
+#      when: not stat_result.stat.exists
+
+#    - name: Print facts
+#      debug:
+#        msg: "{{ ansible_net_hostname }},{{ ansible_net_version }},{{ ansible_net_serialnum }},{{ansible_net_interfaces}}"
+#
+#    - debug: msg="{{ ansible_net_interfaces | map(attribute='ipv4') | selectattr('defined') | map(attribute='address') | zip(ansible_net_interfaces | keys) }}"
+
+
+    - name: Extract Interface Name and IP Address (Jinja2)
+      debug:
+        msg: "{{inventory_hostname}},{{ item.key }},{{item.value.ipv4.0.address}}"
+      with_dict:
+       - "{{ ansible_net_interfaces }}"
+      when: item.value.ipv4.0.address is defined
+#        msg: "{{ ansible_net_hostname }},{{ ansible_net_iostype }},{{ ansible_net_version }},{{ ansible_net_system }},{{ ansible_net_serialnum }},{{ ansible_net_image }}"
+#    - name: view all ansible fact keys
+#      debug:
+#        var: ansible_facts.keys()
+##    
+#    - name: view iostype
+#      debug:
+#        var: ansible_net_interfaces
+##    
+#    - name: view hostname
+#      debug:
+#        var: ansible_network_resources
+##    - name: Insert lines into a file
+##      lineinfile:
+##        path: /etc/ansible/ansible_v2/facts.csv
+##        line: "{{ ansible_net_hostname }},{{ ansible_net_iostype }},{{ ansible_net_version }},{{ ansible_net_system }},{{ ansible_net_serialnum }},{{ ansible_net_image }}"
+#
+#    - name: Write facts to a file
+#      template:
+#        src: ./templates/template.j2
+#        dest: ./reports/facts.csv
+#      delegate_to: localhost
+#      run_once: yes
+#
+#
+#    - name: view all ansible fact keys
+#      debug:
+#        var: ansible_facts.keys()
+##    
+#    - name: view iostype
+#      debug:
+#        var: ansible_net_interfaces
+##    
+#    - name: view hostname
+#      debug:
+#        var: ansible_network_resources
+##    
+#    - name: view image
+#      debug:
+#        var: ansible_net_image
+#    
+#    - name: view version
+#      debug:
+#        var: ansible_net_version
+#    
+#    - name: view system
+#      debug:
+#        var: ansible_net_system
+#    
+#    - name: view serialnum
+#      debug:
+#        var: ansible_net_serialnum
+
+
+#    - name: Display all interface data v2
+#      debug:
+#         msg: "{{ item.key }}{{item.value.ipv4.0.address}},{{item.value.ipv4.0.subnet}}"
+#      with_dict:
+#       - "{{ ansible_net_interfaces }}"
+#      when: item.value.ipv4.0.address is defined
+#        msg: "{{ ansible_net_hostname }},{{ ansible_net_iostype }},{{ ansible_net_version }},{{ ansible_net_system }},{{ ansible_net_serialnum }},{{ ansible_net_image }}"
+
+#    - name: Display all interface data
+#      debug:
+##         msg: "{{ item.key }},{{item.value.description}},{{item.value.ipv4.0.address}},{{item.value.ipv4.0.subnet}}"
+#         msg: "{{ item.key }}"
+#      when: item.value.ipv4.0.address is defined
+#      with_dict:
+#       - "{{ ansible_net_interfaces }}"
+#
+##    - name: Check that the config_report file exists
+##      stat:
+##        path: ./reports/{{inventory_hostname}}_report_interface
+##      register: stat_result
+#  
+#    - name: Display all interface data v2
+#      debug:
+#         msg: "{{ item.key }},{{item.value.operstatus}}"
+#      with_dict:
+#       - "{{ ansible_net_interfaces }}"
+#      when: item.value.ipv4.0.address is defined
+
+#    - name: Delete the file, if it exists
+#      file:
+#        path: /etc/ansible/ansible_v2/reports/{{inventory_hostname}}_report_interface
+#        state: absent
+#      when: stat_result.stat.exists
+#
+#    - name: Create new report file
+#      file:
+#        path: ./reports/{{inventory_hostname}}_report_interface
+#        state: touch
+#  
+    - name: create report
+      lineinfile:
+#        path: ./reports/{{inventory_hostname}}_report_interface
+#        line: "{{ item.key }},{{item.value.description}},{{item.value.operstatus}},{{item.value.lineprotocol}},{{item.value.ipv4.0.address}},{{item.value.ipv4.0.subnet}},{{item.value.bandwidth}},{{item.value.duplex}}"
+        path: ./testreport
+        line: "{{inventory_hostname}},{{ item.key }},{{item.value.ipv4.0.address}}"
+      with_dict:
+       - "{{ ansible_net_interfaces }}"
+      when: item.value.ipv4.0.address is defined
+#
+#    - name: create report 2nd
+#      lineinfile:
+#        path: ./reports/{{inventory_hostname}}_report_interface
+#        line: "{{ item.key }},{{item.value.description}},{{item.value.operstatus}},{{item.value.lineprotocol}},NONE,NONE,{{item.value.bandwidth}},{{item.value.duplex}}"
+#      with_dict:
+#       - "{{ ansible_net_interfaces }}"
+#      when: item.value.ipv4.0.address is not defined

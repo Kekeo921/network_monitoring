@@ -6,29 +6,29 @@
 #    ansible_python_interpreter: /bin/python3
   tasks:
 
-    - name: Run grafana container 
-      docker_container:
-        name: grafana
-        image: grafana/grafana
-        state: started
-        recreate: yes
-        ports:
-          - "3000:3000"
-        volumes:
-          - grafana-data:/var/lib/grafana
-
-    - name: Run node exporter container 
-      docker_container:
-        name: node-exporter
-        image: prom/node-exporter:latest
-        state: started
-        recreate: yes
-        ports:
-          - "9100:9100"
-        volumes:
-          - /proc:/host/proc:ro
-          - /sys:/host/sys:ro
-          - /:/rootfs:ro
+#    - name: Run grafana container 
+#      docker_container:
+#        name: grafana
+#        image: grafana/grafana
+#        state: started
+#        recreate: yes
+#        ports:
+#          - "3000:3000"
+#        volumes:
+#          - grafana-data:/var/lib/grafana
+#
+#    - name: Run node exporter container 
+#      docker_container:
+#        name: node-exporter
+#        image: prom/node-exporter:latest
+#        state: started
+#        recreate: yes
+#        ports:
+#          - "9100:9100"
+#        volumes:
+#          - /proc:/host/proc:ro
+#          - /sys:/host/sys:ro
+#          - /:/rootfs:ro
 
 
     - name: Run local telegraf 

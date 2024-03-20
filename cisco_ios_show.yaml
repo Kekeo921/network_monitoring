@@ -1,0 +1,56 @@
+- hosts: LAB
+  gather_facts: false
+  connection: local
+
+  tasks: 
+
+#  - debug: var=ansible_facts
+
+#  - name: Show running config
+#    ios_command:
+#     commands:
+#       - show running-config
+#       - show ip route
+#    register: showrun
+#
+#  - debug: var=showrun.stdout_lines[0]
+#  - debug: var=showrun.stdout_lines[1]
+
+
+  - name: Show running config
+    ios_command:
+     commands:
+       - show running-config
+       - show ip route
+    register: showrun
+
+  - debug: var=showrun.stdout_lines[0]
+
+  - name: debug msg
+    debug:
+      msg: 
+        - "{{showrun.stdout_lines[0]}}"
+        - "{{showrun.stdout_lines[1]}}"
+      
+
+#  - name: Show running config
+#    ios_command:
+#     commands:
+#       - show ip route
+#    register: showroute
+#
+#  - debug: var=showrun.stdout_lines
+#  - debug: var=showroute.stdout_lines
+
+#  - name: debug msg
+#    debug:
+#      msg: "{{showrun.stdout_lines[0]}}"
+
+#  - name: add ntp server
+#    ios_config:
+#      lines:
+#        - "ntp server 10.100.0.1"
+#        - "ntp server 10.100.0.2"
+#    register: config
+#
+#  - debug: var=config
